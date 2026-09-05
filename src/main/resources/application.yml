@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: ratelimiter
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ratelimiter}
+    username: ${SPRING_DATASOURCE_USERNAME:ratelimiter}
+    password: ${SPRING_DATASOURCE_PASSWORD:ratelimiter}
+    hikari:
+      maximum-pool-size: 20
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.example.ratelimiter: INFO
+
+# ---------------------------------------------------------------------------
+# Rate limiting configuration.
+# `algorithm` picks which one is active; it can also be flipped at runtime via
+# PUT /api/admin/rate-limit so you can demo all three without a restart.
+# ---------------------------------------------------------------------------
+ratelimit:
+  enabled: true
+  algorithm: FIXED_WINDOW
+  # identifies the caller; falls back to the remote IP when the header is absent
+  client-header: X-Client-Id
+  fixed-window:
+    limit: 5
+    window: 10s
+  sliding-window:
+    limit: 5
+    window: 10s
+  token-bucket:
+    capacity: 5
+    refill-tokens: 1
+    refill-period: 2s

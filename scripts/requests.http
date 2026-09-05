@@ -1,0 +1,45 @@
+### Rate limiter — quick manual checks (IntelliJ HTTP client / VS Code REST Client)
+@baseUrl = http://localhost:8080
+@clientId = alice
+
+### Current configuration and resolved client id
+GET {{baseUrl}}/api/admin/rate-limit
+
+### The protected endpoint — repeat this until it returns 429
+POST {{baseUrl}}/api/messages
+Content-Type: application/json
+X-Client-Id: {{clientId}}
+
+{
+  "message": "hello rate limiter"
+}
+
+### Validation failure (400)
+POST {{baseUrl}}/api/messages
+Content-Type: application/json
+X-Client-Id: {{clientId}}
+
+{
+  "message": "   "
+}
+
+### A different client has its own budget
+POST {{baseUrl}}/api/messages
+Content-Type: application/json
+X-Client-Id: bob
+
+{
+  "message": "bob is not throttled by alice"
+}
+
+### What got through
+GET {{baseUrl}}/api/messages?limit=20
+
+### Switch algorithm at runtime: FIXED_WINDOW | SLIDING_WINDOW | TOKEN_BUCKET
+PUT {{baseUrl}}/api/admin/rate-limit?algorithm=SLIDING_WINDOW
+
+### Clear this client's counters in all three algorithms
+DELETE {{baseUrl}}/api/admin/rate-limit/state?clientId={{clientId}}
+
+### Health
+GET {{baseUrl}}/actuator/health

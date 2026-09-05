@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ratelimiter-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ratelimiter}
+      POSTGRES_USER: ${POSTGRES_USER:-ratelimiter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ratelimiter}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # The app container waits for this to pass before it starts.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ratelimiter} -d ${POSTGRES_DB:-ratelimiter}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+    container_name: ratelimiter-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-ratelimiter}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-ratelimiter}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-ratelimiter}
+      # Starting algorithm; also switchable at runtime via PUT /api/admin/rate-limit
+      RATELIMIT_ALGORITHM: ${RATELIMIT_ALGORITHM:-FIXED_WINDOW}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  postgres-data:
